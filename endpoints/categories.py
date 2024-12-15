@@ -1,90 +1,39 @@
-from flask import Flask, request
-from flask_restful import Resource, Api, reqparse
-import json
-from utils.database_connection import DatabaseConnection
+from flask import Blueprint, request, jsonify
+from utils.decorators import validate_token
+from utils.repository_factory import get_repository
+from utils.error_handler import ErrorHandler
 
-def is_valid_token(token):
-    return token == 'abcd1234'
+categories_bp = Blueprint('categories', __name__)
+category_repo = get_repository('categories')
 
-class CategoriesResource(Resource):
-    def __init__(self):
+@categories_bp.route('/categories', methods=['GET'])
+@validate_token
+def get_categories():
+    try:
+        categories = category_repo.get_all()
+        return jsonify(categories), 200
+    except Exception as e:
+        return ErrorHandler.generate_error(str(e), 500)
 
-        self.db = DatabaseConnection('db.json')
-        self.db.connect()
-
-        self.categories_data = self.db.get_categories()
-        self.parser = reqparse.RequestParser()
-
-    def get(self, category_id=None):
-        token = request.headers.get('Authorization')
-        if not token:
-            return { 'message': 'Unauthorized acces token not found'}, 401
-        if not is_valid_token(token):
-           return { 'message': 'Unauthorized invalid token'}, 401
-
-        if category_id is not None:
-            category = next((p for p in self.categories_data if p['id'] == category_id), None)
-            if category is not None:
-                return category
-            else:
-                return {'message': 'Category not found'}, 404
-         
-        return self.categories_data 
-
-    def post(self):
-        token = request.headers.get('Authorization')
-        if not token:
-            return { 'message': 'Unauthorized acces token not found'}, 401
-        if not is_valid_token(token):
-           return { 'message': 'Unauthorized invalid token'}, 401
-
-        self.parser.add_argument('name', type=str, required=True, help='Name of the category')
- 
-        args = self.parser.parse_args()
-        print("*****",args)
-        new_category_name = args['name']
-        if not new_category_name:
-            return {'message': 'Category name is required'}, 400
-
-        categories = self.categories_data
-        if new_category_name in categories:
-            return {'message': 'Category already exists'}, 400
-
-        new_category = {
-                'id': len(self.categories_data) + 1,
-                'name': new_category_name
-        }
-
-        categories.append(new_category)
-        self.categories_data = categories
-        
-        self.db.add_category(new_category)
-
-        return {'message': 'Category added successfully'}, 201
-
-    def delete(self):
-        token = request.headers.get('Authorization')
-        if not token:
-            return { 'message': 'Unauthorized acces token not found'}, 401
-        if not is_valid_token(token):
-           return { 'message': 'Unauthorized invalid token'}, 401
-
-        args = self.parser.parse_args()
-        self.parser.add_argument('name', type=str, required=True, help='Name of the category')
-        args = self.parser.parse_args()
-        category_name = args['name']
- 
+@categories_bp.route('/categories', methods=['POST'])
+@validate_token
+def create_category():
+    try:
+        data = request.json
+        category_name = data.get('name')
         if not category_name:
-            return {'message': 'Category name is required'}, 400
+            return ErrorHandler.generate_error("Category name is required", 400)
+        category_repo.add({'name': category_name})
+        return jsonify({'message': 'Category created successfully'}), 201
+    except Exception as e:
+        return ErrorHandler.generate_error(str(e), 500)
 
-        category_to_remove = next((cat for cat in self.categories_data if cat["name"] == category_name), None)
-
-        if category_to_remove is None:
-            return {'message': 'Category not found'}, 404
-        else:
-            categories = [cat for cat in self.categories_data if cat["name"] != category_to_remove]
-            self.categories_data = categories
-            self.db.remove_category(category_name)
-
-            return {'message': 'Category removed successfully'}, 200
-
+@categories_bp.route('/categories/<int:category_id>', methods=['DELETE'])
+@validate_token
+def delete_category(category_id):
+    try:
+        if category_repo.delete(category_id):
+            return jsonify({'message': 'Category deleted successfully'}), 200
+        return ErrorHandler.generate_error("Category not found", 404)
+    except Exception as e:
+        return ErrorHandler.generate_error(str(e), 500)

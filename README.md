@@ -11,42 +11,47 @@ The following is a simple implementation of a REST API with poor coding practice
 3. **Open Git Bash.** I recommend using Git Bash for the following steps.
 
 4. **Clone this repository** or unzip the folder and go to the folder
+   ```bash
+   git clone <repository-url>
+   cd <repository-folder>
+   ```
 
 5. **Create a virtual environment** using the following command:
-   ```
+   ```bash
    python -m venv venv
    ```
 
 6. **Activate the virtual environment** with this command:
-   ```
-   source venv/bin/activate
-   ```
-
-7. **Install Flask** by running:
-   ```
-   pip install Flask
+   ```bash
+   source venv/bin/activate      # On Linux/macOS
+   venv\Scripts\activate       # On Windows
    ```
 
-8. **Install Flask-RESTful** with the following command:
+7. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
    ```
-   pip install flask_restful
+
+   **Dependencies in `requirements.txt` include:**
+   ```plaintext
+   Flask==2.2.3
+   ```
+   These are the required libraries to run the project.
+
+8. **Run** the Flask app with this command:
+   ```bash
+   python app.py
    ```
 
-9. **Download Insomnia** from [Insomnia Website](https://insomnia.rest/download) or Postman
-
-
-10. **Run** the Flask app with this command:
-    ```
-    python app.py
-    ```
-
-11. **Use Insomnia** or Postman to make requests to the URL provided by the Python app.
-
-Certainly, here are the improved and corrected steps for your API endpoints:
+9. **Test the API** using tools like Postman, Insomnia, or curl.
+   Example:
+   ```bash
+   curl -X GET http://127.0.0.1:5000/products -H "Authorization: abcd12345"
+   ```
 
 # Endpoints
 
-1. **Login**: Returns a fake token for authentication.
+1. **Login**: Returns a static token for authentication.
     - **Method**: POST
     - **Path**: /auth
 
@@ -111,7 +116,7 @@ Certainly, here are the improved and corrected steps for your API endpoints:
          "path": "/categories",
          "authToken": "required",
          "body": {
-             "name": "nameProduct"
+             "name": "nameCategory"
          }
      }
      ```
@@ -123,7 +128,61 @@ Certainly, here are the improved and corrected steps for your API endpoints:
          "path": "/categories",
          "authToken": "required",
          "body": {
-             "name": "nameProduct"
+             "name": "nameCategory"
          }
      }
      ```
+
+4. **Favorites**:
+
+   - **Get Favorites**
+     ```
+     {
+         "method": "GET",
+         "path": "/favorites",
+         "authToken": "required"
+     }
+     ```
+
+   - **Add Favorite**
+     ```
+     {
+         "method": "POST",
+         "path": "/favorites",
+         "authToken": "required",
+         "body": {
+             "productId": 123
+         }
+     }
+     ```
+
+   - **Delete Favorite**
+     ```
+     {
+         "method": "DELETE",
+         "path": "/favorites/favoriteId",
+         "authToken": "required"
+     }
+     ```
+
+# Project Structure
+
+```plaintext
+project/
+|-- app.py
+|-- db.json
+|-- endpoints/
+|   |-- products.py
+|   |-- categories.py
+|   |-- favorites.py
+|   |-- auth.py
+|-- utils/
+|   |-- decorators.py
+|   |-- error_handler.py
+|   |-- repositories.py
+|   |-- repository_factory.py
+```
+
+# Contribution
+
+Contributions are welcome! Open an issue or submit a pull request. Please follow coding standards and document your changes.

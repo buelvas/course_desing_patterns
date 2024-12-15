@@ -1,61 +1,44 @@
-from flask_restful import Resource, reqparse
-import json
-from flask import request
-from utils.database_connection import DatabaseConnection
+from flask import Blueprint, request, jsonify
+from utils.decorators import validate_token
+from utils.repository_factory import get_repository
+from utils.error_handler import ErrorHandler
 
-def is_valid_token(token):
-    return token == 'abcd1234'
+products_bp = Blueprint('products', __name__)
+product_repo = get_repository('products')
 
-class ProductsResource(Resource):
-    def __init__(self):
-       
-        self.db = DatabaseConnection('db.json')
-        self.db.connect()
+@products_bp.route('/products', methods=['GET'])
+@validate_token
+def get_products():
+    try:
+        category = request.args.get('category')
+        if category:
+            products = product_repo.get_products_by_category(category)
+        else:
+            products = product_repo.get_all()
+        return jsonify(products), 200
+    except Exception as e:
+        return ErrorHandler.generate_error(str(e), 500)
 
-        self.products = self.db.get_products()
-        self.parser = reqparse.RequestParser()
-        
-    def get(self, product_id=None):
-        args = self.parser.parse_args()
-        token = request.headers.get('Authorization')
-        category_filter = request.args.get('category')
-      
-        if not token:
-            return { 'message': 'Unauthorized acces token not found'}, 401
+@products_bp.route('/products/<int:product_id>', methods=['GET'])
+@validate_token
+def get_product(product_id):
+    try:
+        product = product_repo.get_by_id(product_id)
+        if product:
+            return jsonify(product), 200
+        return ErrorHandler.generate_error("Product not found", 404)
+    except Exception as e:
+        return ErrorHandler.generate_error(str(e), 500)
 
-        if not is_valid_token(token):
-           return { 'message': 'Unauthorized invalid token'}, 401
+@products_bp.route('/products', methods=['POST'])
+@validate_token
+def create_product():
+    try:
+        data = request.json
+        product_repo.add(data)
+        return jsonify({'message': 'Product created successfully'}), 201
+    except Exception as e:
+        return ErrorHandler.generate_error(str(e), 500)
 
-        if category_filter:
-            filtered_products = [p for p in self.products if p['category'].lower() == category_filter.lower()]
-            return filtered_products 
-        
-        if product_id is not None:
-            product = next((p for p in self.products if p['id'] == product_id), None)
-            if product is not None:
-                return product
-            else:
-                return {'message': 'Product not found'}, 404
-              
-        return self.products
-
-    def post(self):
-        token = request.headers.get('Authorization')
-        parser = reqparse.RequestParser()
-        parser.add_argument('name', type=str, required=True, help='Name of the product')
-        parser.add_argument('category', type=str, required=True, help='Category of the product')
-        parser.add_argument('price', type=float, required=True, help='Price of the product')
-
-        args = parser.parse_args()
-        new_product = {
-            'id': len(self.products) + 1,
-            'name': args['name'],
-            'category': args['category'],
-            'price': args['price']
-        }
-
-        self.products.append(new_product)
-        self.db.add_product(new_product)
-        return {'mensaje': 'Product added', 'product': new_product}, 201
 
 
